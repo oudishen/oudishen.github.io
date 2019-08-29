@@ -1,0 +1,86 @@
+---
+layout: post
+title:  "Helm"
+date:   2019-08-29 20:33:34 +0800
+categories: Kubernetes
+---
+
+# Helm
+
+Helm把Kubernetes资源(比如deployments、services或 ingress等) 打包到一个chart中，而chart被保存到chart仓库。通过chart仓库可用来存储和分享chart。Helm使发布可配置，支持发布应用配置的版本管理，简化了Kubernetes部署应用的版本控制、打包、发布、删除、更新等操作。
+
+## Install
+Client
+```bash
+wget https://get.helm.sh/helm-v2.14.3-linux-amd64.tar.gz
+tar zxvf helm-v2.14.3-linux-amd64.tar.gz
+mv linux-amd64/helm /usr/local/bin/helm
+
+go get -v github.com/helm/helm/cmd/helm
+```
+
+Server
+```bash
+helm init \
+	--upgrade \
+	-i registry.cn-hangzhou.aliyuncs.com/google_containers/tiller:v2.14.3  \
+	--stable-repo-url https://kubernetes.oss-cn-hangzhou.aliyuncs.com/charts
+
+kubectl create serviceaccount --namespace kube-system tiller
+kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
+kubectl get deploy -n kube-system tiller-deploy -o yaml | grep serviceAccount
+```
+
+
+## Repo
+```bash
+helm repo add stable https://kubernetes-charts.storage.googleapis.com
+```
+
+
+## 创建chart
+```bash
+helm create hello
+
+tree hello
+
+hello
+├── charts                            <- 依赖chart存储路径
+├── Chart.yaml                        <- 包含了chart的metadata，描述了Chart名称、描述信息与版本
+├── templates                         <- 模板文件
+│   ├── deployment.yaml
+│   ├── _helpers.tpl
+│   ├── ingress.yaml
+│   ├── NOTES.txt
+│   ├── service.yaml
+│   └── tests
+│       └── test-connection.yaml
+└── values.yaml                       <- 模板文件变量
+```
+
+
+## chart安装
+
+```bash
+helm install stable/nginx                               # 指定chart
+helm install ./nginx-1.2.3.tgz                          # 指定打包的chart
+helm install ./nginx                                    # 指定打包目录
+helm install https://example.com/charts/nginx-1.2.3.tgz # 指定chart包URL
+helm install --set name=prod ./redis                    # 覆盖chart中的name默认值
+helm install -f myvalues.yaml ./redis                   # 用myvalues.yaml中配置覆盖chart中的默认值
+```
+
+
+## Release的版本管理
+```bash
+helm list -a                                  # 查看全部的release
+helm status mysql                             # 查看release状态
+helm upgrade mysql -f mysql/values.yaml mysql # 更新release
+helm hist mysql                               # 指定release的历史部署版本信息
+helm get --revision 1 mysql                   # 查看指定release的历史版本部署时部分配置信息
+helm rollback --debug mysql 1                 # 版本回滚
+helm delete mysql                             # 删除, 可用rollback回滚
+helm delete --purge mysql                     # 彻底删除一个release, 不可回滚
+```
+
