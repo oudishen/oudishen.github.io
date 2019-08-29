@@ -5,11 +5,53 @@ date:   2019-08-29 20:33:34 +0800
 categories: Kubernetes
 ---
 
-# Helm
+## Helm 是什么
+Helm是做为Kubernetes应用的一个包管理工具，可理解为Kubernetes的 `apt-get`/`yum`。
+Helm通过软件打包的形式，支持发布的版本管理和控制，很大程度上简化了**Kubernetes**应用部署和管理的复杂性。
+
+
+## Helm 解决什么问题
+利用Kubernetes部署一个应用，需要Kubernetes原生资源文件如deployment、replicationcontroller、service或pod 等。
+而对于一个复杂的应用，会有很多类似上面的资源描述文件，如果有更新或回滚应用的需求，可能要修改和维护所涉及的大量资源文件，且由于缺少对发布过的应用版本管理和控制，使Kubernetes上的应用维护和更新等面临诸多的挑战:
+
+1. 管理、编辑与更新大量的K8s配置文件
+2. 部署一个含有大量配置文件的复杂K8s应用
+3. 分享和复用K8s配置和应用
+4. 参数化配置模板支持多个环境
+5. 管理应用的发布：回滚、diff和查看发布历史
+6. 控制一个部署周期中的某一些环节
+7. 发布后的验证
+
+
+## Helm 是如何工作的
+
+![helm-arch](/assets/helm-arch.jpg)
 
 Helm把Kubernetes资源(比如deployments、services或 ingress等) 打包到一个chart中，而chart被保存到chart仓库。通过chart仓库可用来存储和分享chart。Helm使发布可配置，支持发布应用配置的版本管理，简化了Kubernetes部署应用的版本控制、打包、发布、删除、更新等操作。
 
-## Install
+### 组件:
+**Helm Client**是用户命令行工具，其主要负责如下：
+- 本地chart开发
+- 仓库管理
+- 与Tiller sever交互
+- 发送预安装的chart
+- 查询release信息
+- 要求升级或卸载已存在的release
+- Tiller Server是一个部署在Kubernetes集群内部的server，其与Helm client、Kubernetes API server进行交互。
+
+**Tiller server**主要负责如下：
+- 监听来自Helm client的请求
+- 通过chart及其配置构建一次发布
+- 安装chart到Kubernetes集群，并跟踪随后的发布
+- 通过与Kubernetes交互升级或卸载chart
+
+Tiller server 没有自己的数据库，目前使用Kubernetes的ConfigMaps存储相关信息
+
+交互
+![helm-arch](/assets/helm-comm.webp)
+
+
+## 安装
 Client
 ```bash
 wget https://get.helm.sh/helm-v2.14.3-linux-amd64.tar.gz
@@ -33,7 +75,7 @@ kubectl get deploy -n kube-system tiller-deploy -o yaml | grep serviceAccount
 ```
 
 
-## Repo
+## 仓库管理
 ```bash
 helm repo add stable https://kubernetes-charts.storage.googleapis.com
 ```
@@ -41,9 +83,9 @@ helm repo add stable https://kubernetes-charts.storage.googleapis.com
 
 ## 创建chart
 ```bash
-helm create hello
+helm create mynginx
 
-tree hello
+tree mynginx
 
 hello
 ├── charts                            <- 依赖chart存储路径
@@ -59,8 +101,69 @@ hello
 └── values.yaml                       <- 模板文件变量
 ```
 
+## Chart模板
+Helm Chart模板采用go模板语言编写, 一个模板指令由{{}}标记。{{ .Release.Name }}会把release name插入模板。
 
-## chart安装
+## 内置对象
+### Release: 描述Release本身
+- Release.Name: The release name
+- Release.Time: The time of the release
+- Release.Namespace: The namespace to be released into (if the manifest doesn’t override)
+- Release.Service: The name of the releasing service (always Tiller).
+- Release.Revision: The revision number of this release. It begins at 1 and is incremented for each helm upgrade.
+- Release.IsUpgrade: This is set to true if the current operation is an upgrade or rollback.
+- Release.IsInstall: This is set to true if the current operation is an install.
+
+### Values:
+- 可通过chart中的`values.yaml`文件
+- 对于subchart，`父chart`中`values.yaml`文件
+- `helm install` 或 `helm update` 指定 `-f flag` (helm install -f myvals.yaml ./mychart)
+- 通过 `--set` 参数传值(例如 helm install --set foo=bar ./mychart)
+
+上面4种Values来源的重要性由上到下的顺序，优先级由低到高。
+如需要删除键值对中删除默认key，需要将key的值设置为null
+
+### Chart: The contents of the Chart.yaml file
+
+### Files
+
+### Capabilities: This provides information about what capabilities the Kubernetes cluster supports.
+- Capabilities.APIVersions is a set of versions.
+- Capabilities.APIVersions.Has $version indicates whether a version (e.g., batch/v1) or resource (e.g., apps/v1/Deployment) is available on the cluster. Note, resources were not available before Helm v2.15.
+- Capabilities.KubeVersion provides a way to look up the Kubernetes version. It has the following values: Major, Minor, GitVersion, GitCommit, GitTreeState, BuildDate, GoVersion, Compiler, and Platform.
+- Capabilities.TillerVersion provides a way to look up the Tiller version. It has the following values: SemVer, GitCommit, and GitTreeState.
+
+### Template: Contains information about the current template that is being executed
+Name: A namespaced filepath to the current template (e.g. mychart/templates/mytemplate.yaml)
+BasePath: The namespaced path to the templates directory of the current chart (e.g. mychart/templates).
+
+
+### SubChart和全局变量
+**subchart**，指的是一个chart依赖其他chart，被依赖的chart即被称为subchart。
+- subchart无需依赖父chart，其是一个完全独立操作的chart，拥有自己values和模板。
+- subchart没权限访问父chart的values，但父chart可以覆盖subchart的values。
+- 无论subchart或父chart都可以访问helm全局values。
+
+创建subchart的过程与普通chart基本一致，唯一需要注意的是，subchart需要创建在父chart的charts文件夹内，举例如下：
+```bash
+cd mynginx/charts
+helm create mysubchart
+```
+
+subchart可以单独安装：
+```bash
+helm install --dry-run --debug mychart/charts/mysubchart
+```
+
+**全局变量**: 全部chart，包括子chart都可以访问全局chart values。一般全局chart values记录在父chart Values.global中
+
+### 调试模板
+- helm lint 验证chart是否遵循了一些好的实践
+- helm install --dry-run --debug: chart发送给Tiller server并用value.yaml中的值来渲染相关模板。但实际上chart并没有安装， 只是输出了渲染后的模板。
+- helm get manifest: 查看Tiller server端已安装的模板。
+
+
+## Chart安装
 
 ```bash
 helm install stable/nginx                               # 指定chart
