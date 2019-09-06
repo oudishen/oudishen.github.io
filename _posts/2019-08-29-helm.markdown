@@ -82,7 +82,7 @@ helm repo add stable https://kubernetes-charts.storage.googleapis.com
 
 
 ## 创建chart
-```bash
+```
 helm create mynginx
 
 tree mynginx
@@ -102,7 +102,7 @@ hello
 ```
 
 ## Chart模板
-Helm Chart模板采用go模板语言编写, 一个模板指令由{{}}标记。{{ .Release.Name }}会把release name插入模板。
+Helm Chart模板采用go模板语言编写, 一个模板指令由\{\{}}标记。\{\{ .Release.Name }}会把release name插入模板。
 
 ## 内置对象
 ### Release: 描述Release本身
