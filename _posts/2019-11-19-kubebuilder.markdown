@@ -223,11 +223,6 @@ func (r *PodSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 ```
 
-### Create API
-```bash
-kubebuilder create api --group sample --version v1alpha1 --kind PodSet
-```
-
 ### Generate manifests
 ```bash
 make manifests
@@ -283,14 +278,23 @@ metadata:
   annotations:
     kubectl.kubernetes.io/last-applied-configuration: |
       {"apiVersion":"sample.oudishen.net/v1alpha1","kind":"PodSet","metadata":{"annotations":{},"name":"podset-sample","namespace":"default"},"spec":{"replicas":3}}
-  creationTimestamp: "2019-11-19T15:41:02Z"
-  generation: 1
+  creationTimestamp: "2019-11-19T16:26:20Z"
+  generation: 3
   name: podset-sample
   namespace: default
-  resourceVersion: "8549396"
+  resourceVersion: "8558160"
   selfLink: /apis/sample.oudishen.net/v1alpha1/namespaces/default/podsets/podset-sample
-  uid: fdad0175-0ae2-11ea-bb67-00163e097f91
+  uid: 5210a92a-0ae9-11ea-bb67-00163e097f91
 spec:
   replicas: 3
+status:
+  availableReplicas: 3
+```
+
+kubectl get pod | grep podset
+```
+podset-sample-pod-6b56t                           1/1     Running            0          73s
+podset-sample-pod-d8pwn                           1/1     Running            0          72s
+podset-sample-pod-wwp8p                           1/1     Running            0          72s
 ```
 
