@@ -212,13 +212,14 @@ func newPodForCR(cr *v1alpha1.PodSet) *corev1.Pod {
 func (r *PodSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.PodSet{}).
-		Watches(
-			&source.Kind{Type: &corev1.Pod{}},
-			&handler.EnqueueRequestForOwner{
-				IsController: true,
-				OwnerType:    &v1alpha1.PodSet{},
-			},
-		).
+		Owns(&corev1.Pod{}).
+		//Watches(
+		//	&source.Kind{Type: &corev1.Pod{}},
+		//	&handler.EnqueueRequestForOwner{
+		//		IsController: true,
+		//		OwnerType:    &v1alpha1.PodSet{},
+		//	},
+		//).
 		Complete(r)
 }
 ```
